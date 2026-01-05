@@ -95,11 +95,7 @@
           <div class="drag-handle">☰</div>
           
           <div class="queue-number">
-            {#if index === $currentIndex}
-              <span class="playing-indicator">▶</span>
-            {:else}
               {index + 1}
-            {/if}
           </div>
           
           <div class="album-art">
