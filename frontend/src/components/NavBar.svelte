@@ -7,6 +7,7 @@
   <ul>
     <li><a href="/" use:link>Library</a></li>
     <li><a href="/albums" use:link>Albums</a></li>
+    <li><a href="/search" use:link>Search</a></li>
     <li>
       <a href="/queue" use:link>
         Queue
@@ -21,18 +22,12 @@
 <style>
   nav {
     display: flex;
-    align-items: center;
     justify-content: space-between;
     padding: 1rem 2rem;
-    background: #1a1a1a;
+    background: var(--bg-tertiary);
     border-bottom: 1px solid #333;
   }
   
-  h1 {
-    margin: 0;
-    font-size: 1.5rem;
-    color: #fff;
-  }
   
   ul {
     display: flex;
@@ -45,7 +40,8 @@
   a {
     color: #aaa;
     text-decoration: none;
-    font-weight: 500;
+    font-weight: 500; 
+    color: var(--text-secondary);
   }
   
   a:hover {

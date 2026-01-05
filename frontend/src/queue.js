@@ -1,18 +1,23 @@
-import { writable, derived } from 'svelte/store';
-import { playSong as playAudio } from './lib/player.js';
+import { writable, derived, get } from 'svelte/store';
+import { playSong as playAudio, setOnSongEnd } from './lib/player.js';
 
 export const queue = writable([]);
 export const currentIndex = writable(-1);
 
+setOnSongEnd(() => {
+  playNext();
+});
+
 export const currentQueueSong = derived(
   [queue, currentIndex],
-  ([$queue, $currentIndex]) => {
-    if ($currentIndex >= 0 && $currentIndex < $queue.length) {
-      return $queue[$currentIndex];
-    }
-    return null;
-  }
+  ([$queue, $currentIndex]) =>
+    $currentIndex >= 0 && $currentIndex < $queue.length ? $queue[$currentIndex] : null
 );
+
+function clampIndex(idx, len) {
+  if (len <= 0) return -1;
+  return Math.max(0, Math.min(idx, len - 1));
+}
 
 export function addToQueue(song) {
   queue.update(q => [...q, song]);
@@ -23,17 +28,24 @@ export function addMultipleToQueue(songs) {
 }
 
 export function removeFromQueue(index) {
-  queue.update(q => {
-    const newQueue = [...q];
-    newQueue.splice(index, 1);
-    return newQueue;
-  });
-  
-  currentIndex.update(idx => {
-    if (idx > index) return idx - 1;
-    if (idx === index) return idx;
-    return idx;
-  });
+  const q = get(queue);
+  if (index < 0 || index >= q.length) return;
+
+  queue.set(q.filter((_, i) => i !== index));
+
+  const idx = get(currentIndex);
+  const newLen = q.length - 1;
+
+  if (newLen <= 0) {
+    currentIndex.set(-1);
+    return;
+  }
+
+  if (idx > index) {
+    currentIndex.set(idx - 1);
+  } else if (idx === index) {
+    currentIndex.set(clampIndex(idx, newLen));
+  }
 }
 
 export function clearQueue() {
@@ -42,72 +54,74 @@ export function clearQueue() {
 }
 
 export function playFromQueue(index) {
-  let songToPlay;
-  queue.update(q => {
-    if (index >= 0 && index < q.length) {
-      songToPlay = q[index];
-    }
-    return q;
-  });
-  
-  if (songToPlay) {
-    currentIndex.set(index);
-    playAudio(songToPlay);
-  }
+  const q = get(queue);
+  if (index < 0 || index >= q.length) return;
+
+  currentIndex.set(index);
+  playAudio(q[index]);
 }
 
 export function playNext() {
-  let nextSong;
-  let nextIndex;
-  
-  currentIndex.update(idx => {
-    nextIndex = idx + 1;
-    return nextIndex;
-  });
-  
-  queue.update(q => {
-    if (nextIndex < q.length) {
-      nextSong = q[nextIndex];
-    }
-    return q;
-  });
-  
-  if (nextSong) {
-    playAudio(nextSong);
+  const q = get(queue);
+  const idx = get(currentIndex);
+  const next = idx + 1;
+
+  if (next >= 0 && next < q.length) {
+    currentIndex.set(next);
+    playAudio(q[next]);
   }
 }
 
 export function playPrevious() {
-  let prevSong;
-  let prevIndex;
-  
-  currentIndex.update(idx => {
-    prevIndex = Math.max(0, idx - 1);
-    return prevIndex;
-  });
-  
-  queue.update(q => {
-    if (prevIndex >= 0 && prevIndex < q.length) {
-      prevSong = q[prevIndex];
-    }
-    return q;
-  });
-  
-  if (prevSong) {
-    playAudio(prevSong);
+  const q = get(queue);
+  const idx = get(currentIndex);
+  const prev = Math.max(0, idx - 1);
+
+  if (prev >= 0 && prev < q.length) {
+    currentIndex.set(prev);
+    playAudio(q[prev]);
   }
 }
 
-export function playSongWithQueue(song, songsToQueue = []) {
-  const songIndex = songsToQueue.findIndex(s => s.id === song.id);
-  
-  if (songIndex !== -1) {
-    queue.set(songsToQueue);
-    currentIndex.set(songIndex);
-  } else {
-    queue.update(q => [song, ...q]);
-    currentIndex.set(0);
+
+export function playSongWithQueue(song, contextSongs = []) {
+  const q = get(queue);
+  const idx = get(currentIndex);
+
+  const key = (s) => s?.id ?? s?.path;
+  const songKey = key(song);
+
+  if (q.length === 0 && contextSongs.length > 0) {
+    const startIndex = contextSongs.findIndex(s => key(s) === songKey);
+    queue.set(contextSongs);
+    currentIndex.set(startIndex >= 0 ? startIndex : 0);
+    playAudio(startIndex >= 0 ? contextSongs[startIndex] : contextSongs[0]);
+    return;
   }
-  
+
+  const existing = q.findIndex(s => key(s) === songKey);
+  if (existing !== -1) {
+    currentIndex.set(existing);
+    playAudio(q[existing]);
+    return;
+  }
+
+  const insertAt = idx >= 0 ? idx + 1 : 0;
+
+  let block = [];
+  if (contextSongs.length > 0) {
+    const start = contextSongs.findIndex(s => key(s) === songKey);
+    if (start !== -1) {
+      block = contextSongs.slice(start);
+    } else {
+      block = [song];
+    }
+  } else {
+    block = [song];
+  }
+
+  currentIndex.set(insertAt);
   playAudio(song);
 }
+
+

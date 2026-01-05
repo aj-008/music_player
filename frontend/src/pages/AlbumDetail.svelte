@@ -1,8 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import SongItem from '../components/SongItem.svelte';
-  import { playSong } from '../lib/player.js';
-  import { playSongWithQueue } from '../queue.js';
+  import { playSongWithQueue, addToQueue, addMultipleToQueue } from '../queue.js';
   
   export let params = {};  
   
@@ -23,10 +22,21 @@
     const song = event.detail;
     playSongWithQueue(song, album.songs); 
   }
+
+  function handleAddToQueue(event) {
+    const song = event.detail;
+    addToQueue(song);
+  }
   
   function playAll() {
     if (album && album.songs.length > 0) {
       playSongWithQueue(album.songs[0], album.songs);
+    }
+  }
+
+  function queueAll() {
+    if (album && album.songs.length > 0) {
+      addMultipleToQueue(album.songs);
     }
   }
 </script>
@@ -54,6 +64,9 @@
         <button class="play-all" on:click={playAll}>
           ▶ Play Album
         </button>
+        <button class="queue-all" on:click={queueAll}>
+            Queue Album
+        </button>
       </div>
     </div>
     
@@ -73,6 +86,7 @@
             hideAlbumArt={true} 
             hideAlbum={true} 
             on:play={handlePlay} 
+            on:addToQueue={handleAddToQueue}
           />
         </div>
       {/each}
@@ -193,6 +207,24 @@
     transform: scale(1.05);
     background: var(--accent-secondary);
   }
+
+.queue-all {
+  padding: 0.75rem 2rem;
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+  align-self: flex-start;
+}
+
+.queue-all:hover {
+  transform: scale(1.05);
+  background: var(--bg-tertiary);
+}
   
   .song-list {
     display: flex;

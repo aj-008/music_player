@@ -7,13 +7,15 @@
   import Library from './pages/Library.svelte';
   import Albums from './pages/Albums.svelte';
   import AlbumDetail from './pages/AlbumDetail.svelte';
-  import Queue from './pages/Queue.svelte'; 
+  import Queue from './pages/Queue.svelte';
+  import Search from './pages/Search.svelte';
   
   const routes = {
     '/': Library,  
     '/albums': Albums,
     '/albums/:title': AlbumDetail,
-    '/queue': Queue, 
+    '/queue': Queue,
+    '/search': Search,
   };
 </script>
 

@@ -3,6 +3,7 @@
   import { getSongs } from '../lib/api.js';
   import SongItem from '../components/SongItem.svelte';
   import { playSong } from '../lib/player.js';
+  import { addToQueue } from '../queue.js';
 
   let songs = [];
   let loading = true;
@@ -25,8 +26,7 @@
   
   function handleAddToQueue(event) {
     const song = event.detail;
-    console.log('Add to queue:', song.title);
-    // TODO: Implement queue
+    addToQueue(song);        
   }
   
   function handleAddToPlaylist(event) {
