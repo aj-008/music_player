@@ -1,5 +1,6 @@
 <script>
-  import { currentSong, isPlaying, currentTime, duration, pause, resume, seek } from '../lib/player.js';
+    import { currentSong, isPlaying, currentTime, duration, pause, resume, seek } from '../lib/player.js';
+  import { playNext, playPrevious } from '../queue.js';
 
 
   let imageError = false;
@@ -10,6 +11,14 @@
     } else {
       resume();
     }
+  }
+
+  function handleNext() {
+    playNext();
+  }
+  
+  function handlePrevious() {
+    playPrevious();
   }
   
   function formatTime(seconds) {
@@ -22,13 +31,15 @@
     const percent = event.offsetX / event.target.offsetWidth;
     seek(percent * $duration);
   }
+
+  $: if ($currentSong) imageError = false;
 </script>
 
 {#if $currentSong}
   <div class="player">
     <div class="song-info">
       <div class="album-art">
-        {#if !imageError}
+        {#if $currentSong.coverUrl && !imageError}
           <img 
             src={$currentSong.coverUrl} 
             alt={$currentSong.album}
@@ -48,13 +59,27 @@
     </div>
     
     <div class="controls">
-      <button class="play-button" on:click={togglePlay}>
-        {#if $isPlaying}
-          <span class="pause-icon"></span>
-        {:else}
-          <span class="play-icon">▶</span>
-        {/if}
-      </button>
+      <div class="playback-buttons">
+        <button class="control-button" on:click={handlePrevious} title="Previous">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M3 2v12h2V2H3zm3 6l8 6V2l-8 6z"/>
+          </svg>
+        </button>
+        
+        <button class="play-button" on:click={togglePlay}>
+          {#if $isPlaying}
+            <span class="pause-icon"></span>
+          {:else}
+            <span class="play-icon">▶</span>
+          {/if}
+        </button>
+        
+        <button class="control-button" on:click={handleNext} title="Next">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M11 2v12h2V2h-2zM2 2v12l8-6-8-6z"/>
+          </svg>
+        </button>
+      </div>
       
       <div class="progress-container">
         <span class="time">{formatTime($currentTime)}</span>
@@ -82,12 +107,12 @@
     display: flex;
     align-items: center;
     gap: 2rem;
+    z-index: 100;
   }
 
   .play-icon {
     font-size: 1rem;
     margin-left: 3px;
-    margin-bottom: 3px;
   }
   
   .pause-icon {
@@ -164,8 +189,36 @@
   .controls {
     flex: 1;
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    max-width: 600px;
+  }
+
+
+  .playback-buttons {
+    display: flex;
     align-items: center;
     gap: 1rem;
+  }
+  
+  .control-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .control-button:hover {
+    color: var(--text-primary);
+    transform: scale(1.1);
   }
   
   .play-button {
@@ -184,22 +237,24 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
   
-  button:hover {
+  .play-button:hover {
     transform: scale(1.1);
     background: var(--accent-secondary);
   }
   
   .progress-container {
-    flex: 1;
+    width: 100%;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
   }
   
   .time {
     font-size: 0.85rem;
     color: var(--text-secondary);
-    min-width: 30px;
+    min-width: 40px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
   }
   
   .progress-bar {

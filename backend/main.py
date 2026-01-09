@@ -1,12 +1,16 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 import os
 from pathlib import Path
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, APIC
 import urllib.parse
 import base64
+from typing import List
+import json
+import asyncio
+import time
 
 app = FastAPI()
 
@@ -19,6 +23,11 @@ app.add_middleware(
 )
 
 MUSIC_DIR = Path.home() / "music"
+
+active_connections: List[WebSocket] = []
+
+latest_state = {}
+latest_state_lock = asyncio.Lock()
 
 @app.get("/api/songs")
 def get_songs():
@@ -98,4 +107,75 @@ def get_albums():
         album["songs"].sort(key=lambda s: s["trackNumber"])
 
     return list(albums.values())
+
+
+
+
+# These are just for broadcasting to the pico w
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    active_connections.append(websocket)
+    print(f"WebSocket client connected. Total: {len(active_connections)}")
+    
+    try:
+        while True:
+            # Receive messages from client
+            data = await websocket.receive_json()
+            print(f"Received: {json.dumps(data)}")
+            
+            # Handle different command types
+            command = data.get("command")
+            
+            if command in ["next", "prev", "play_pause"]:
+                print(f"Broadcasting action: {command}")
+                await broadcast({"action": command})
+            else:
+                print(f"Unknown command: {command}")
+                
+    except WebSocketDisconnect:
+        print("Client disconnected")
+        active_connections.remove(websocket)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        if websocket in active_connections:
+            active_connections.remove(websocket)
+
+async def broadcast(message: dict):
+    """Send message to all connected clients"""
+    print(f"Broadcasting to {len(active_connections)} clients: {json.dumps(message)}")
+    
+    disconnected = []
+    for connection in active_connections:
+        try:
+            await connection.send_json(message)
+            print(f"Sent to client")
+        except Exception as e:
+            print(f"Failed to send to client: {e}")
+            disconnected.append(connection)
+    
+    # Clean up disconnected clients
+    for conn in disconnected:
+        active_connections.remove(conn)
+
+
+
+@app.post("/api/player/update")
+async def update_player_state(state: dict):
+    state_norm = dict(state)
+    state_norm["duration"] = int(state.get("duration", 0) or 0)
+    state_norm["current_time"] = int(state.get("current_time", 0) or 0)
+    dur = state_norm["duration"] or 1
+    ct = state_norm["current_time"]
+    state_norm["progress"] = int((ct * 100) / dur)
+
+    async with latest_state_lock:
+        latest_state.clear()
+        latest_state.update(state_norm)
+
+    await broadcast({"type": "player_state", "data": state_norm})
+    return {"status": "ok"}
+
+
+
 
